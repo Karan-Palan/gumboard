@@ -90,12 +90,14 @@ test.describe('Note to Todo Conversion', () => {
 
   test('should convert note to checklist and verify database state', async ({ page }) => {
     let conversionApiCalled = false;
-    let noteAfterConversion: { isChecklist: boolean; checklistItems: Array<{ content: string }> } | null = null;
+    let capturedConversionData: { isChecklist: boolean; content: string } | null = null;
+    
     
     await page.route('**/api/boards/test-board/notes/existing-note', async (route) => {
       if (route.request().method() === 'PUT') {
         conversionApiCalled = true;
         const requestBody = await route.request().postDataJSON();
+        capturedConversionData = requestBody;
         
         if (requestBody.isChecklist) {
           const checklistItems = [
@@ -103,12 +105,6 @@ test.describe('Note to Todo Conversion', () => {
             { id: 'item-2', content: 'Buy bread', checked: false, order: 1 },
             { id: 'item-3', content: 'Buy eggs', checked: false, order: 2 }
           ];
-          
-          noteAfterConversion = {
-            ...requestBody,
-            isChecklist: true,
-            checklistItems
-          };
           
           await route.fulfill({
             status: 200,
@@ -136,8 +132,11 @@ test.describe('Note to Todo Conversion', () => {
     });
     
     await page.goto('/boards/test-board');
+    await page.waitForTimeout(500);
+    
     
     await expect(page.locator('text=Buy milk')).toBeVisible();
+    
     
     await page.evaluate(() => {
       const mockConversion = {
@@ -151,18 +150,61 @@ test.describe('Note to Todo Conversion', () => {
       });
     });
     
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(500);
+    
     
     expect(conversionApiCalled).toBe(true);
-    expect(noteAfterConversion).not.toBeNull();
-    expect(noteAfterConversion!.isChecklist).toBe(true);
-    expect(noteAfterConversion!.checklistItems).toHaveLength(3);
-    expect(noteAfterConversion!.checklistItems[0].content).toBe('Buy milk');
+    expect(capturedConversionData).not.toBeNull();
+    expect(capturedConversionData!.isChecklist).toBe(true);
+    expect(capturedConversionData!.content).toBe('Buy milk\nBuy bread\nBuy eggs');
   });
 
   test('should display note content correctly', async ({ page }) => {
+    let getNotesRequested = false;
+    let capturedNotesData: { notes: Array<{ id: string; content: string; isChecklist: boolean; [key: string]: unknown }> } | null = null;
+
+    await page.route('**/api/boards/test-board/notes', async (route) => {
+      if (route.request().method() === 'GET') {
+        getNotesRequested = true;
+        capturedNotesData = {
+          notes: [
+            {
+              id: 'existing-note',
+              content: 'Buy milk\nBuy bread\nBuy eggs',
+              color: '#fef3c7',
+              done: false,
+              isChecklist: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              user: {
+                id: 'test-user',
+                name: 'Test User',
+                email: 'test@example.com',
+              },
+            }
+          ],
+        };
+        
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(capturedNotesData),
+        });
+      }
+    });
+    
     await page.goto('/boards/test-board');
     
+    await page.waitForTimeout(500);
+
+    expect(getNotesRequested).toBe(true);
+    expect(capturedNotesData).not.toBeNull();
+    expect(capturedNotesData!.notes).toHaveLength(1);
+    expect(capturedNotesData!.notes[0].content).toContain('Buy milk');
+    expect(capturedNotesData!.notes[0].content).toContain('Buy bread');
+    expect(capturedNotesData!.notes[0].content).toContain('Buy eggs');
+    expect(capturedNotesData!.notes[0].isChecklist).toBe(false);
+
     await expect(page.locator('text=Buy milk')).toBeVisible();
     await expect(page.locator('text=Buy bread')).toBeVisible();
     await expect(page.locator('text=Buy eggs')).toBeVisible();

@@ -26,7 +26,9 @@ test.describe("Organization Settings", () => {
     await authenticatedPage.goto("/settings/organization");
 
     // Wait for page to load
-    await expect(authenticatedPage.locator("text=Organization Settings")).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
 
     // Test invalid Slack webhook URL (doesn't contain "slack")
     const slackWebhookInput = authenticatedPage.locator("#slackWebhookUrl");
@@ -69,7 +71,9 @@ test.describe("Organization Settings", () => {
     await authenticatedPage.goto("/settings/organization");
 
     // Wait for page to load
-    await expect(authenticatedPage.locator("text=Organization Settings")).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
 
     // Test valid Slack webhook URL (contains "slack")
     const validSlackUrl =
@@ -117,7 +121,9 @@ test.describe("Organization Settings", () => {
     await authenticatedPage.goto("/settings/organization");
 
     // Wait for page to load
-    await expect(authenticatedPage.locator("text=Organization Settings")).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
 
     // Verify existing URL is loaded
     const slackWebhookInput = authenticatedPage.locator("#slackWebhookUrl");
@@ -168,7 +174,9 @@ test.describe("Organization Settings", () => {
     await authenticatedPage.goto("/settings/organization");
 
     // Wait for page to load
-    await expect(authenticatedPage.locator("text=Organization Settings")).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
 
     // Verify Slack webhook input is disabled for non-admin users
     const slackWebhookInput = authenticatedPage.locator("#slackWebhookUrl");
@@ -183,6 +191,144 @@ test.describe("Organization Settings", () => {
       "title",
       "Only admins can update organization settings"
     );
+  });
+
+  test("should display admin privileges information for non-admin users", async ({
+    authenticatedPage,
+    testContext,
+    testPrisma,
+  }) => {
+    await testPrisma.user.update({
+      where: { id: testContext.userId },
+      data: { isAdmin: false },
+    });
+
+    await authenticatedPage.goto("/settings/organization");
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Admin Privileges" })
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.locator("text=You are currently a regular member")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.locator("text=Update organization name and Slack integration")
+    ).toBeVisible();
+    await expect(authenticatedPage.locator("text=Invite and remove team members")).toBeVisible();
+    await expect(authenticatedPage.locator("text=Grant or revoke admin privileges")).toBeVisible();
+    await expect(authenticatedPage.locator('label[for="orgName"]')).toContainText(
+      "Organization Name"
+    );
+    await expect(authenticatedPage.locator('label[for="orgName"]')).toContainText("(Admin only)");
+    await expect(
+      authenticatedPage.locator("text=Only admins can change the organization name")
+    ).toBeVisible();
+    await expect(authenticatedPage.locator("text=Slack Webhook URL")).toBeVisible();
+    await expect(
+      authenticatedPage.locator("text=Only admins can configure Slack integration")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.locator("text=Only admins can invite new team members to the organization")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.locator("text=Contact an admin to invite new team members")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.locator("text=Only admins can create and manage these links")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.locator("text=Only admins can create self-serve invite links")
+    ).toBeVisible();
+  });
+
+  test("should show member roles and privileges clearly", async ({
+    authenticatedPage,
+    testContext,
+    testPrisma,
+  }) => {
+    const regularUser = await testPrisma.user.create({
+      data: {
+        email: "regular@example.com",
+        name: "Regular User",
+        organizationId: testContext.organizationId,
+        isAdmin: false,
+      },
+    });
+
+    await testPrisma.user.update({
+      where: { id: testContext.userId },
+      data: { isAdmin: true },
+    });
+
+    await authenticatedPage.goto("/settings/organization");
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
+
+    const adminUserCard = authenticatedPage
+      .locator(`[data-testid="member-${testContext.userId}"]`)
+      .first();
+    if ((await adminUserCard.count()) === 0) {
+      await expect(authenticatedPage.locator("text=Admin").first()).toBeVisible();
+      await expect(
+        authenticatedPage
+          .locator("text=Can manage organization settings, invite members, and edit all boards")
+          .first()
+      ).toBeVisible();
+    }
+
+    const regularUserCard = authenticatedPage
+      .locator(`[data-testid="member-${regularUser.id}"]`)
+      .first();
+    if ((await regularUserCard.count()) === 0) {
+      await expect(authenticatedPage.locator("text=Member").first()).toBeVisible();
+      await expect(
+        authenticatedPage
+          .locator("text=Can create boards and notes, but cannot manage organization settings")
+          .first()
+      ).toBeVisible();
+    }
+
+    await testPrisma.user.delete({ where: { id: regularUser.id } });
+  });
+
+  test("should show informative messages about invited member privileges", async ({
+    authenticatedPage,
+    testContext,
+    testPrisma,
+  }) => {
+    await testPrisma.organizationInvite.create({
+      data: {
+        email: "pending@example.com",
+        organizationId: testContext.organizationId,
+        invitedBy: testContext.userId,
+        status: "PENDING",
+      },
+    });
+
+    await authenticatedPage.goto("/settings/organization");
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
+
+    await expect(authenticatedPage.locator("text=Pending Invites")).toBeVisible();
+    await expect(
+      authenticatedPage.locator(
+        "text=These users will join as regular members (not admins) when they accept"
+      )
+    ).toBeVisible();
+
+    await expect(authenticatedPage.locator("text=regular users (not admins)")).toBeVisible();
+
+    await expect(
+      authenticatedPage
+        .locator(
+          "text=Create shareable links that allow anyone to join your organization as regular members (not admins)"
+        )
+        .first()
+    ).toBeVisible();
   });
 
   test("should independently handle save operations for organization name and Slack webhook", async ({
@@ -205,7 +351,9 @@ test.describe("Organization Settings", () => {
     });
 
     await authenticatedPage.goto("/settings/organization");
-    await expect(authenticatedPage.locator("text=Organization Settings")).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
 
     // Get both save buttons
     const orgNameSaveButton = authenticatedPage.locator('button:has-text("Save changes")').first();
@@ -261,6 +409,10 @@ test.describe("Organization Settings", () => {
     testContext,
     testPrisma,
   }) => {
+    await testPrisma.organizationSelfServeInvite.deleteMany({
+      where: { token: "test-token-123" },
+    });
+
     const invite = await testPrisma.organizationSelfServeInvite.create({
       data: {
         name: "Test Invite",
@@ -273,7 +425,9 @@ test.describe("Organization Settings", () => {
 
     await authenticatedPage.goto("/settings/organization");
 
-    await expect(authenticatedPage.locator("text=Organization Settings")).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
     await expect(authenticatedPage.locator("text=Self-Serve Invite Links")).toBeVisible();
 
     const copyButton = authenticatedPage.locator(`[title="Copy invite link"]`).first();

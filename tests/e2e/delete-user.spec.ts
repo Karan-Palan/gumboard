@@ -288,7 +288,9 @@ test.describe("Delete User Functionality", () => {
   }) => {
     await authenticatedPage.goto("/settings/organization");
 
-    await expect(authenticatedPage.locator("text=Organization Settings")).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Organization Settings" })
+    ).toBeVisible();
 
     await expect(
       authenticatedPage.getByRole("heading", { name: "Team Members", exact: true })

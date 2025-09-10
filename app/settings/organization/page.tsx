@@ -111,7 +111,7 @@ export default function OrganizationSettingsPage() {
       setSlackWebhookUrl(slackWebhookValue);
       setOriginalSlackWebhookUrl(slackWebhookValue);
     }
-  }, [user?.organization?.name, user?.organization?.slackWebhookUrl]);
+  }, [user?.organization]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -498,13 +498,20 @@ export default function OrganizationSettingsPage() {
               Organization Settings
             </h2>
             <p className="text-zinc-600 dark:text-zinc-400">
-              Manage your organization and team members.
+              {user?.isAdmin
+                ? "Manage your organization and team members."
+                : "View your organization settings. Contact an admin to make changes."}
             </p>
           </div>
 
           <div>
             <Label htmlFor="orgName" className="text-zinc-800 dark:text-zinc-200">
               Organization Name
+              {!user?.isAdmin && (
+                <span className="text-sm text-zinc-500 dark:text-zinc-400 font-normal ml-1">
+                  (Admin only)
+                </span>
+              )}
             </Label>
             <Input
               id="orgName"
@@ -515,6 +522,11 @@ export default function OrganizationSettingsPage() {
               className="mt-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
               disabled={!user?.isAdmin}
             />
+            {!user?.isAdmin && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                Only admins can change the organization name.
+              </p>
+            )}
           </div>
 
           <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
@@ -538,13 +550,20 @@ export default function OrganizationSettingsPage() {
               Slack Integration
             </h3>
             <p className="text-zinc-600 dark:text-zinc-400">
-              Configure Slack notifications for notes and todos.
+              {user?.isAdmin
+                ? "Configure Slack notifications for notes and todos."
+                : "Slack integration settings. Contact an admin to modify."}
             </p>
           </div>
 
           <div>
             <Label htmlFor="slackWebhookUrl" className="text-zinc-800 dark:text-zinc-200">
               Slack Webhook URL
+              {!user?.isAdmin && (
+                <span className="text-sm text-zinc-500 dark:text-zinc-400 font-normal ml-1">
+                  (Admin only)
+                </span>
+              )}
             </Label>
             <Input
               id="slackWebhookUrl"
@@ -555,6 +574,11 @@ export default function OrganizationSettingsPage() {
               className="mt-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
               disabled={!user?.isAdmin}
             />
+            {!user?.isAdmin && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                Only admins can configure Slack integration.
+              </p>
+            )}
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
               Create a webhook URL in your Slack workspace to receive notifications when notes and
               todos are created or completed.{" "}
@@ -585,6 +609,35 @@ export default function OrganizationSettingsPage() {
         </div>
       </Card>
 
+      {/* Admin Privileges Info */}
+      {!user?.isAdmin && (
+        <Card className="p-4 lg:p-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                Admin Privileges
+              </h3>
+            </div>
+            <p className="text-blue-800 dark:text-blue-200">
+              You are currently a regular member. Only admins can modify organization settings,
+              invite new members, and manage team roles. Contact an admin if you need to make
+              changes to the organization.
+            </p>
+            <div className="text-sm text-blue-700 dark:text-blue-300">
+              <p className="font-medium mb-1">Admins can:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Update organization name and Slack integration</li>
+                <li>Invite and remove team members</li>
+                <li>Grant or revoke admin privileges</li>
+                <li>Create self-serve invite links</li>
+                <li>Edit and delete any board in the organization</li>
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Team Members */}
       <Card className="p-4 lg:p-6 bg-white dark:bg-black border border-gray-200 dark:border-zinc-800">
         <div className="space-y-3 lg:space-y-6">
@@ -594,8 +647,8 @@ export default function OrganizationSettingsPage() {
             </h3>
             <p className="text-zinc-600 dark:text-zinc-400">
               {user?.isAdmin
-                ? `Manage your organization's team members.`
-                : `View your organization's team members.`}
+                ? `Manage your organization's team members and their roles.`
+                : `View your organization's team members. Only admins can manage roles and invite new members.`}
             </p>
           </div>
 
@@ -603,6 +656,7 @@ export default function OrganizationSettingsPage() {
             {user?.organization?.members?.map((member) => (
               <div
                 key={member.id}
+                data-testid={`member-${member.id}`}
                 className="flex items-center justify-between p-2 lg:p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700"
               >
                 <div className="flex items-center space-x-3">
@@ -623,14 +677,26 @@ export default function OrganizationSettingsPage() {
                       <p className="font-medium text-zinc-900 dark:text-zinc-100">
                         {member.name || "Unnamed User"}
                       </p>
-                      {member.isAdmin && (
+                      {member.isAdmin ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
                           <ShieldCheck className="w-3 h-3 mr-1" />
                           Admin
                         </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                          <Users className="w-3 h-3 mr-1" />
+                          Member
+                        </span>
                       )}
                     </div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{member.email}</p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">{member.email}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                        {member.isAdmin
+                          ? "Can manage organization settings, invite members, and edit all boards"
+                          : "Can create boards and notes, but cannot manage organization settings"}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -679,37 +745,50 @@ export default function OrganizationSettingsPage() {
               Invite Team Members
             </h3>
             <p className="text-zinc-600 dark:text-zinc-400">
-              Send invitations to new team members.
+              {user?.isAdmin
+                ? "Send invitations to new team members. Invited members will join as regular users (not admins)."
+                : "Only admins can invite new team members to the organization."}
             </p>
           </div>
 
-          <form onSubmit={handleInviteMember} className="flex space-x-4">
-            <div className="flex-1">
-              <Input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Enter email address"
-                required
-                disabled={!user?.isAdmin}
-                className="bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-              />
+          {user?.isAdmin ? (
+            <form onSubmit={handleInviteMember} className="flex space-x-4">
+              <div className="flex-1">
+                <Input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="Enter email address"
+                  required
+                  className="bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={inviting}
+                className="disabled:bg-gray-400 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white dark:text-zinc-100 flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                {inviting ? "Inviting..." : <span className="hidden lg:inline">Send Invite</span>}
+              </Button>
+            </form>
+          ) : (
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
+              <div className="flex items-center space-x-2 text-zinc-600 dark:text-zinc-400">
+                <UserPlus className="w-4 h-4" />
+                <span className="text-sm">Contact an admin to invite new team members</span>
+              </div>
             </div>
-            <Button
-              type="submit"
-              disabled={inviting || !user?.isAdmin}
-              className="disabled:bg-gray-400 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white dark:text-zinc-100 flex items-center gap-2"
-              title={!user?.isAdmin ? "Only admins can invite new team members" : undefined}
-            >
-              <UserPlus className="w-4 h-4" />
-              {inviting ? "Inviting..." : <span className="hidden lg:inline">Send Invite</span>}
-            </Button>
-          </form>
+          )}
 
           {/* Pending Invites */}
           {invites.length > 0 && (
             <div className="space-y-3">
               <h4 className="font-medium text-zinc-900 dark:text-zinc-100">Pending Invites</h4>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                These users will join as regular members (not admins) when they accept their
+                invitations.
+              </p>
               {invites.map((invite) => (
                 <div
                   key={invite.id}
@@ -723,15 +802,17 @@ export default function OrganizationSettingsPage() {
                       Invited on {new Date(invite.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <Button
-                    onClick={() => handleCancelInvite(invite.id)}
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900 border-red-600 hover:bg-inherit hover:border-red-600 disabled:opacity-70 disabled:text-red-300"
-                    disabled={cancellingInviteIds.includes(invite.id)}
-                  >
-                    {cancellingInviteIds.includes(invite.id) ? "Cancelling..." : "Cancel"}
-                  </Button>
+                  {user?.isAdmin && (
+                    <Button
+                      onClick={() => handleCancelInvite(invite.id)}
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900 border-red-600 hover:bg-inherit hover:border-red-600 disabled:opacity-70 disabled:text-red-300"
+                      disabled={cancellingInviteIds.includes(invite.id)}
+                    >
+                      {cancellingInviteIds.includes(invite.id) ? "Cancelling..." : "Cancel"}
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -747,121 +828,131 @@ export default function OrganizationSettingsPage() {
               Self-Serve Invite Links
             </h3>
             <p className="text-zinc-600 dark:text-zinc-400">
-              Create shareable links that allow anyone to join your organization.
+              {user?.isAdmin
+                ? "Create shareable links that allow anyone to join your organization as regular members (not admins)."
+                : "Self-serve invite links allow people to join the organization directly. Only admins can create and manage these links."}
             </p>
           </div>
 
           {/* Create New Self-Serve Invite */}
-          <form
-            onSubmit={handleCreateSelfServeInvite}
-            className="space-y-4 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="inviteName" className="text-zinc-800 dark:text-zinc-200 mb-2">
-                  Invite Name
-                </Label>
-                <Input
-                  id="inviteName"
-                  type="text"
-                  value={newSelfServeInvite.name}
-                  onChange={(e) =>
-                    setNewSelfServeInvite((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
-                  }
-                  placeholder="e.g., General Invite"
-                  required
-                  disabled={!user?.isAdmin}
-                  className="bg-white h-9 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
-                />
-              </div>
-              <div>
-                <Label htmlFor="expiresAt" className="text-zinc-800 dark:text-zinc-200 mb-2">
-                  Expires (Optional)
-                </Label>
-                <Popover open={user?.isAdmin ? undefined : false}>
-                  <PopoverTrigger asChild>
-                    <div
-                      className="flex h-9 items-center w-full px-3 py-[6px]
+          {user?.isAdmin ? (
+            <form
+              onSubmit={handleCreateSelfServeInvite}
+              className="space-y-4 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="inviteName" className="text-zinc-800 dark:text-zinc-200 mb-2">
+                    Invite Name
+                  </Label>
+                  <Input
+                    id="inviteName"
+                    type="text"
+                    value={newSelfServeInvite.name}
+                    onChange={(e) =>
+                      setNewSelfServeInvite((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g., General Invite"
+                    required
+                    disabled={!user?.isAdmin}
+                    className="bg-white h-9 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 dark:border-zinc-700"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="expiresAt" className="text-zinc-800 dark:text-zinc-200 mb-2">
+                    Expires (Optional)
+                  </Label>
+                  <Popover open={user?.isAdmin ? undefined : false}>
+                    <PopoverTrigger asChild>
+                      <div
+                        className="flex h-9 items-center w-full px-3 py-[6px]
                                  bg-white dark:bg-zinc-800 
                                  border border-zinc-300 dark:border-zinc-700 
                                  rounded-md cursor-pointer 
                                  text-zinc-500 dark:text-zinc-400 
                                  hover:border-zinc-400 dark:hover:border-zinc-600"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                      <span
-                        className={
-                          newSelfServeInvite.expiresAt
-                            ? "text-zinc-900 dark:text-zinc-200"
-                            : "text-zinc-500 dark:text-zinc-400"
-                        }
                       >
-                        {newSelfServeInvite.expiresAt
-                          ? format(new Date(newSelfServeInvite.expiresAt), "dd-MM-yyyy")
-                          : "Pick a date"}
-                      </span>
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={
-                        newSelfServeInvite.expiresAt
-                          ? new Date(newSelfServeInvite.expiresAt)
-                          : undefined
-                      }
-                      onSelect={(date) => {
-                        const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
-                        setNewSelfServeInvite((prev) => ({
-                          ...prev,
-                          expiresAt: formattedDate,
-                        }));
-                      }}
-                      autoFocus
-                      showOutsideDays={true}
-                      classNames={{
-                        weekday:
-                          "w-(--cell-size) text-center text-zinc-900 dark:text-zinc-100 font-normal text-[0.8rem] select-none",
-                        outside:
-                          "text-zinc-400 dark:text-zinc-700 opacity-60 hover:bg-accent hover:text-accent-foreground cursor-pointer",
-                        caption_label: "text-zinc-900 dark:text-zinc-100",
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
+                        <CalendarIcon className="mr-2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                        <span
+                          className={
+                            newSelfServeInvite.expiresAt
+                              ? "text-zinc-900 dark:text-zinc-200"
+                              : "text-zinc-500 dark:text-zinc-400"
+                          }
+                        >
+                          {newSelfServeInvite.expiresAt
+                            ? format(new Date(newSelfServeInvite.expiresAt), "dd-MM-yyyy")
+                            : "Pick a date"}
+                        </span>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={
+                          newSelfServeInvite.expiresAt
+                            ? new Date(newSelfServeInvite.expiresAt)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
+                          setNewSelfServeInvite((prev) => ({
+                            ...prev,
+                            expiresAt: formattedDate,
+                          }));
+                        }}
+                        autoFocus
+                        showOutsideDays={true}
+                        classNames={{
+                          weekday:
+                            "w-(--cell-size) text-center text-zinc-900 dark:text-zinc-100 font-normal text-[0.8rem] select-none",
+                          outside:
+                            "text-zinc-400 dark:text-zinc-700 opacity-60 hover:bg-accent hover:text-accent-foreground cursor-pointer",
+                          caption_label: "text-zinc-900 dark:text-zinc-100",
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label htmlFor="usageLimit" className="text-zinc-800 dark:text-zinc-200 mb-2">
+                    Usage Limit (Optional)
+                  </Label>
+                  <NumberField
+                    id="usageLimit"
+                    min="1"
+                    value={newSelfServeInvite.usageLimit}
+                    onChange={(e) =>
+                      setNewSelfServeInvite((prev) => ({
+                        ...prev,
+                        usageLimit: e.target.value,
+                      }))
+                    }
+                    placeholder="Unlimited"
+                    disabled={!user?.isAdmin}
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="usageLimit" className="text-zinc-800 dark:text-zinc-200 mb-2">
-                  Usage Limit (Optional)
-                </Label>
-                <NumberField
-                  id="usageLimit"
-                  min="1"
-                  value={newSelfServeInvite.usageLimit}
-                  onChange={(e) =>
-                    setNewSelfServeInvite((prev) => ({
-                      ...prev,
-                      usageLimit: e.target.value,
-                    }))
-                  }
-                  placeholder="Unlimited"
-                  disabled={!user?.isAdmin}
-                />
+              <Button
+                type="submit"
+                disabled={creating}
+                className="disabled:bg-gray-400 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white dark:text-zinc-100 flex items-center gap-2"
+              >
+                <Link className="w-4 h-4" />
+                {creating ? "Creating..." : "Create Invite Link"}
+              </Button>
+            </form>
+          ) : (
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
+              <div className="flex items-center space-x-2 text-zinc-600 dark:text-zinc-400">
+                <Link className="w-4 h-4" />
+                <span className="text-sm">Only admins can create self-serve invite links</span>
               </div>
             </div>
-            <Button
-              type="submit"
-              disabled={creating || !user?.isAdmin}
-              className="disabled:bg-gray-400 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white dark:text-zinc-100 flex items-center gap-2"
-              title={!user?.isAdmin ? "Only admins can create invite links" : undefined}
-            >
-              <Link className="w-4 h-4" />
-              {creating ? "Creating..." : "Create Invite Link"}
-            </Button>
-          </form>
+          )}
 
           {/* Active Self-Serve Invites */}
           {selfServeInvites.length > 0 && (
